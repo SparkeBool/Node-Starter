@@ -61,6 +61,7 @@ const signup = async (req, res) =>{
       const { firstName, lastName, phone, email, password} = req.body;
 
       //check phone number exist
+      //check phone number exist
       const phoneExist = await User.findOne({phone});
       if(phoneExist){
         return res.status(400).json({msg: "Phone number Already Exist"});
