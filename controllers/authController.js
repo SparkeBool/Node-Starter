@@ -1,12 +1,11 @@
 const bcryptjs = require("bcryptjs");
-const nodemailer = require("nodemailer");
 
 const {validateSignin, validateSignup} = require("../lib/validations/userValidation");
 
 const User = require("../model/User");
 const { genJWT } = require("../lib/helpers/jwt");
 const generateUniqueChars = require("../lib/utils");
-const sendActivationLink = require("../lib/nodemailer/activationEmail");
+const {sendActivationLink} = require("../lib/nodemailer/activationEmail");
 
 
 // @description: User signin
@@ -37,6 +36,25 @@ const signin = async (req, res) =>{
         return res.status(400).json({msg: "invalid email or password"});
       }
 
+
+        if(!user.isActivate){
+          const activationToken = generateUniqueChars(80);
+          const activationTokenExpires = Date.now() + 20 * 60 * 1000;
+
+          user.activationToken = activationToken;
+          user.activationTokenExpires = activationTokenExpires;
+          lastName = user.lastName;
+          user.activationToken = undefined;
+          user.activationTokenExpires = undefined;
+
+          try{
+            await sendActivationLink({ email, lastName, activationToken });
+          }catch(error){
+            console.error(error);
+          }
+        return res.status(400).json({msg: `Activate your account. An Activation Email as been sent to ${user.email}`});
+
+        }
       //using jsonwebtoken
 
       const payload = {
@@ -101,10 +119,16 @@ const signup = async (req, res) =>{
         firstName: newUser.firstName,
         lastName: newUser.lastName
       }
-    
-      await sendActivationLink({ email, lastName, activationToken });
 
-      res.status(201).json({ msg: "Sign up successful" });
+      res.status(201).json({ msg: "Sign up successful! an Activation Email has been sent to your mail" });
+
+    try{
+      await sendActivationLink({ email, lastName, activationToken });
+    }catch(error){
+      console.error(error);
+    }
+
+    
     //   res.json({newUser});
 }
 
@@ -122,6 +146,8 @@ const activate = async (req, res) => {
 
   if (Date.now() > user.activationTokenExpires) {
     return res.status(400).json({ msg: "Activation token expired" });
+    user.activationToken = undefined;
+    user.activationTokenExpires = undefined;
   }
 
   user.isActivate = true;
@@ -135,6 +161,8 @@ const activate = async (req, res) => {
 
 module.exports.signin = signin;
 module.exports.signup = signup;
+module.exports.activate = activate;
+
 
 /**
  * on signin, check if the user is activated, 

@@ -47,7 +47,7 @@ const userSchema = new mongoose.Schema({
         default: false
     },
     activationToken: String,
-    activationExpires: String
+    activationTokenExpires: String
 
 
 
