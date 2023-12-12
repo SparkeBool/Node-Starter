@@ -44,8 +44,8 @@ const signin = async (req, res) =>{
           user.activationToken = activationToken;
           user.activationTokenExpires = activationTokenExpires;
           lastName = user.lastName;
-          user.activationToken = undefined;
-          user.activationTokenExpires = undefined;
+          
+          await user.save();
 
           try{
             await sendActivationLink({ email, lastName, activationToken });
@@ -55,17 +55,36 @@ const signin = async (req, res) =>{
         return res.status(400).json({msg: `Activate your account. An Activation Email as been sent to ${user.email}`});
 
         }
-      //using jsonwebtoken
+      //setting cookie
 
       const payload = {
         _id: user._id,
         email: user.email,
         name: `${user.firstName} ${user.lastName}`
       }
+      let isSecureCookie = false ; // only in dev in prod should be true
+      let sameSiteCookie = "lax"; //lax, true, false or strict
+     
+      //checking if environment is production
+      if (process.env.NODE_ENV === "production") {
+        isSecureCookie = true;
+        sameSiteCookie = "None";
+      }
 
       const token = genJWT(payload);
+      const oneDay = 1000 * 60 * 60 * 24; // 24 hrs
+      //settting cookie
+      res.cookie("accessToken", token, {
+        httpOnly: true,
+        secure: isSecureCookie,
+        signed: true,
+        expires: new Date(Date.now() + oneDay),
+        sameSite:sameSiteCookie
+        });
+     
+      
 
-      res.json({token, msg: "Login Successful"});
+      res.json({msg: "Login Successful"});
 }
 
 const signup = async (req, res) =>{
@@ -157,6 +176,7 @@ const activate = async (req, res) => {
   await user.save();
 
   res.status(200).json({ msg: "Account activated successfully" });
+  
 };
 
 module.exports.signin = signin;
